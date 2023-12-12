@@ -56,25 +56,23 @@ while True:
     intro_content = row[3]
 
     # 해당 희망분야의 채용공고 불러오기
-    cursor.execute("SELECT JOB_POSTING_ID, TITLE, GROUP_INTRO, MAINDUTIES, QUALIFICATION, PREFERENTIAL FROM JOB_POSTING WHERE JOB_GROUP = ?", desire_field)
-    job_postings = cursor.fetchall()
+    cursor.execute(
+        "SELECT JOB_POSTING_ID, TITLE, GROUP_INTRO, MAINDUTIES, QUALIFICATION, PREFERENTIAL FROM JOB_POSTING WHERE JOB_GROUP = ?",
+        desire_field)
+    job_postings = cursor.fetchmany(5)  # fetchall에서 fetchmany(5)로 변경
 
     # 매칭 점수 계산
-    scores = []
+    scores = 0
     for posting in job_postings:
         job_posting_id = posting[0]
         job_posting_content = ' '.join(posting[1:])
 
         max_similarity_score = calculate_max_similarity_per_sentence(model, tokenizer, intro_content,
                                                                      job_posting_content)
-        scores.append((job_posting_id, max_similarity_score))
+        scores = max_similarity_score
 
-    # 상위 5개 채용공고 선택
-    top_5_postings = sorted(scores, key=lambda x: x[1], reverse=True)[:5]
 
-    # MATCH 테이블에 결과 저장
-    for job_posting_id, score in top_5_postings:
-        cursor.execute("INSERT INTO MATCH (INTRO_ID, JOB_POSTINGID, MATCH-SCORE) VALUES (?, ?, ?)", (intro_id, job_posting_id, score))
+        cursor.execute("INSERT INTO MATCH (INTRO_ID, JOB_POSTINGID, MATCH-SCORE) VALUES (?, ?, ?)", (intro_id, job_posting_id, scores))
         db.commit()
 
     # SIGNAL 값을 0으로 업데이트
